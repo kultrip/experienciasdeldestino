@@ -80,10 +80,14 @@ const ExperienceDetailPage = () => {
     }
   };
 
-  const calculateTotal = () => {
+  // Use consistent price - prefer price_per_person, then price_numeric
+  const getDisplayPrice = () => {
     if (!experience) return 0;
-    const pricePerPerson = experience.price_per_person || experience.price_numeric || 0;
-    return pricePerPerson * bookingData.participants;
+    return experience.price_per_person ?? experience.price_numeric ?? 0;
+  };
+
+  const calculateTotal = () => {
+    return getDisplayPrice() * bookingData.participants;
   };
 
   const handleBooking = async () => {
@@ -290,10 +294,8 @@ const ExperienceDetailPage = () => {
             <div className="lg:col-span-1">
               <div className="bg-white rounded-xl shadow-lg p-6 sticky top-24">
                 <div className="mb-6">
-                  <span className="text-3xl font-bold text-orange-600">€{experience.price_numeric}</span>
-                  {experience.price_per_person && (
-                    <span className="text-gray-600 ml-2">/persona</span>
-                  )}
+                  <span className="text-3xl font-bold text-orange-600">€{getDisplayPrice()}</span>
+                  <span className="text-gray-600 ml-2">/persona</span>
                 </div>
 
                 <div className="mb-6">

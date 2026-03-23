@@ -162,8 +162,15 @@ const ExperiencesPage = () => {
     <div className="min-h-screen flex flex-col">
       <Header />
 
-      {/* Page Header */}
-      <div className="bg-gradient-to-r from-orange-600 to-orange-700 text-white py-16">
+      {/* Page Header with Hero Image */}
+      <div 
+        className="relative text-white py-20"
+        style={{
+          backgroundImage: 'linear-gradient(rgba(234, 88, 12, 0.85), rgba(194, 65, 12, 0.9)), url(https://images.unsplash.com/photo-1539037116277-4db20889f2d4?w=1920&q=80)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        }}
+      >
         <div className="max-w-7xl mx-auto px-4">
           <h1 className="text-4xl font-bold mb-4">Todas las Experiencias</h1>
           <p className="text-xl text-orange-100">Descubre experiencias únicas en toda España</p>
@@ -365,10 +372,8 @@ const ExperiencesPage = () => {
                       <p className="text-gray-600 text-sm line-clamp-3 mb-4">{exp.description}</p>
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="text-2xl font-bold text-orange-600">€{exp.price_numeric}</span>
-                          {exp.price_per_person && (
-                            <span className="text-sm text-gray-500 ml-1">/persona</span>
-                          )}
+                          <span className="text-2xl font-bold text-orange-600">€{exp.price_per_person ?? exp.price_numeric}</span>
+                          <span className="text-sm text-gray-500 ml-1">/persona</span>
                         </div>
                         <span className="text-orange-600 font-medium text-sm group-hover:underline">Ver más →</span>
                       </div>

@@ -26,7 +26,7 @@ yarn vite --host 0.0.0.0 --port 3000
 
 ## 📍 URLs de Acceso
 
-- **Frontend**: http://localhost:3000 o https://wanderlust-hub-169.preview.emergentagent.com
+- **Frontend**: http://localhost:3000 o https://semantic-search-hub-2.preview.emergentagent.com
 - **Backend API**: http://localhost:5000/api/health
 
 ## 📋 Próximos Pasos

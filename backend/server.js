@@ -1134,7 +1134,8 @@ app.post('/api/messages/start-thread', requireAuthenticated, async (req, res) =>
 });
 
 // SEO: sitemap.xml (dynamic, based on published experiences)
-app.get('/sitemap.xml', async (req, res) => {
+// Available at both /api/sitemap.xml (for ingress routing) and /sitemap.xml (for local/direct)
+app.get(['/api/sitemap.xml', '/sitemap.xml'], async (req, res) => {
   try {
     const siteUrl =
       process.env.PUBLIC_SITE_URL ||
@@ -1195,7 +1196,8 @@ app.get('/sitemap.xml', async (req, res) => {
 });
 
 // SEO: robots.txt
-app.get('/robots.txt', (req, res) => {
+// Available at both /api/robots.txt (for ingress routing) and /robots.txt (for local/direct)
+app.get(['/api/robots.txt', '/robots.txt'], (req, res) => {
   const siteUrl =
     process.env.PUBLIC_SITE_URL ||
     process.env.FRONTEND_URL ||
@@ -1203,7 +1205,7 @@ app.get('/robots.txt', (req, res) => {
   res
     .status(200)
     .type('text/plain')
-    .send(`User-agent: *\nAllow: /\n\nSitemap: ${siteUrl}/sitemap.xml\n`);
+    .send(`User-agent: *\nAllow: /\n\nSitemap: ${siteUrl}/api/sitemap.xml\n`);
 });
 
 // Start server

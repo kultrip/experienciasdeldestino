@@ -11,7 +11,7 @@ import { resolveImageUrl } from '../../utils/images';
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1530789253388-582c481c54b0?w=1920';
 
-const DEFAULT_LOCAL_BACKEND = 'http://localhost:5000';
+const DEFAULT_LOCAL_BACKEND = 'http://localhost:8001';
 const RAW_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 const BACKEND_URL = RAW_BACKEND_URL || (isLocalhost ? DEFAULT_LOCAL_BACKEND : '');

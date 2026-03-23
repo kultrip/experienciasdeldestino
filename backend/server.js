@@ -486,15 +486,15 @@ app.post('/api/create-checkout-session', async (req, res) => {
     } = req.body;
 
     const session = await stripe.checkout.sessions.create({
-      // Let Stripe decide the best payment methods for the customer (Apple Pay / Google Pay where available).
-      automatic_payment_methods: { enabled: true },
+      // Use payment_method_types for broader compatibility
+      payment_method_types: ['card'],
       line_items: [
         {
           price_data: {
             currency: 'eur',
             product_data: {
               name: experienceTitle,
-              description: `Booking for ${participants} participant(s)`,
+              description: `Reserva para ${participants} persona(s)`,
             },
             unit_amount: Math.round(price * 100),
           },
@@ -502,8 +502,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
         },
       ],
       mode: 'payment',
-      success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/experiencia/${experienceId}`,
+      success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/experiencia/${experienceId}`,
       customer_email: customerEmail,
       metadata: {
         experienceId,

@@ -1,0 +1,285 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import bodyParser from 'body-parser';
+import Stripe from 'stripe';
+import { createClient } from '@supabase/supabase-js';
+import sgMail from '@sendgrid/mail';
+
+// Load environment variables
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Initialize Stripe
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+  apiVersion: '2025-02-24.acacia',
+});
+
+// Initialize Supabase Admin Client
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_KEY || ''
+);
+
+// Initialize SendGrid
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+}
+
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', message: 'Kultrip API is running' });
+});
+
+// Stripe Checkout Session endpoint
+app.post('/api/create-checkout-session', async (req, res) => {
+  try {
+    const { experienceId, experienceTitle, price, participants, customerEmail } = req.body;
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'eur',
+            product_data: {
+              name: experienceTitle,
+              description: `Booking for ${participants} participant(s)`,
+            },
+            unit_amount: Math.round(price * 100), // Convert to cents
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/experiencia/${experienceId}`,
+      customer_email: customerEmail,
+      metadata: {
+        experienceId,
+        participants: participants.toString(),
+      },
+    });
+
+    res.json({ sessionId: session.id, url: session.url });
+  } catch (error) {
+    console.error('Error creating checkout session:', error);
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
+// Confirm payment and create booking
+app.post('/api/confirm-payment', async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+
+    // Retrieve the session from Stripe
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (session.payment_status === 'paid') {
+      const { experienceId, participants } = session.metadata || {};
+
+      // Create booking in Supabase
+      const { data: booking, error: bookingError } = await supabaseAdmin
+        .from('bookings')
+        .insert([
+          {
+            experience_id: experienceId,
+            customer_email: session.customer_email,
+            customer_name: session.customer_details?.name || '',
+            participants: parseInt(participants || '1'),
+            total_amount: session.amount_total ? session.amount_total / 100 : 0,
+            status: 'confirmed',
+            payment_status: 'paid',
+            payment_provider: 'stripe',
+            payment_id: session.payment_intent as string,
+          },
+        ])
+        .select()
+        .single();
+
+      if (bookingError) {
+        console.error('Error creating booking:', bookingError);
+        throw bookingError;
+      }
+
+      // Create payment record
+      await supabaseAdmin.from('payments').insert([
+        {
+          booking_id: booking.id,
+          amount: session.amount_total ? session.amount_total / 100 : 0,
+          currency: session.currency || 'eur',
+          status: 'succeeded',
+          provider: 'stripe',
+          provider_payment_id: session.payment_intent as string,
+        },
+      ]);
+
+      // Send confirmation email
+      if (process.env.SENDGRID_API_KEY && session.customer_email) {
+        const msg = {
+          to: session.customer_email,
+          from: process.env.SENDGRID_FROM_EMAIL || 'noreply@kultrip.com',
+          subject: 'Confirmación de Reserva - Experiencias del Destino',
+          html: `
+            <h1>¡Reserva Confirmada!</h1>
+            <p>Gracias por tu reserva.</p>
+            <p><strong>ID de Reserva:</strong> ${booking.id}</p>
+            <p><strong>Participantes:</strong> ${participants}</p>
+            <p><strong>Total:</strong> €${(session.amount_total! / 100).toFixed(2)}</p>
+          `,
+        };
+        
+        try {
+          await sgMail.send(msg);
+        } catch (emailError) {
+          console.error('Error sending email:', emailError);
+        }
+      }
+
+      res.json({ success: true, booking });
+    } else {
+      res.status(400).json({ error: 'Payment not completed' });
+    }
+  } catch (error) {
+    console.error('Error confirming payment:', error);
+    res.status(500).json({ error: 'Failed to confirm payment' });
+  }
+});
+
+// Stripe webhook endpoint
+app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig as string,
+      process.env.STRIPE_WEBHOOK_SECRET || ''
+    );
+  } catch (err: any) {
+    console.error('Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Handle the event
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    
+    // Process the successful payment (similar to confirm-payment)
+    const { experienceId, participants } = session.metadata || {};
+
+    try {
+      const { data: booking } = await supabaseAdmin
+        .from('bookings')
+        .insert([
+          {
+            experience_id: experienceId,
+            customer_email: session.customer_email,
+            customer_name: session.customer_details?.name || '',
+            participants: parseInt(participants || '1'),
+            total_amount: session.amount_total ? session.amount_total / 100 : 0,
+            status: 'confirmed',
+            payment_status: 'paid',
+            payment_provider: 'stripe',
+            payment_id: session.payment_intent as string,
+          },
+        ])
+        .select()
+        .single();
+
+      if (booking) {
+        await supabaseAdmin.from('payments').insert([
+          {
+            booking_id: booking.id,
+            amount: session.amount_total ? session.amount_total / 100 : 0,
+            currency: session.currency || 'eur',
+            status: 'succeeded',
+            provider: 'stripe',
+            provider_payment_id: session.payment_intent as string,
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error('Error processing webhook:', error);
+    }
+  }
+
+  res.json({ received: true });
+});
+
+// Admin: Invite user endpoint
+app.post('/api/admin/invite-user', async (req, res) => {
+  try {
+    const { email, role, province, metadata } = req.body;
+
+    // Create user in Supabase Auth
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+      email,
+      {
+        redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/set-password`,
+      }
+    );
+
+    if (authError) {
+      throw authError;
+    }
+
+    // Create user profile
+    const { error: profileError } = await supabaseAdmin.from('user_profiles').insert([
+      {
+        user_id: authData.user.id,
+        email,
+        role,
+        province,
+        metadata: metadata || {},
+      },
+    ]);
+
+    if (profileError) {
+      throw profileError;
+    }
+
+    // Send invitation email via SendGrid
+    if (process.env.SENDGRID_API_KEY) {
+      const msg = {
+        to: email,
+        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@kultrip.com',
+        subject: 'Invitación a Experiencias del Destino',
+        html: `
+          <h1>¡Bienvenido a Experiencias del Destino!</h1>
+          <p>Has sido invitado como <strong>${role}</strong>.</p>
+          <p>Por favor, completa tu registro haciendo clic en el enlace que recibirás en tu correo.</p>
+        `,
+      };
+
+      try {
+        await sgMail.send(msg);
+      } catch (emailError) {
+        console.error('Error sending invitation email:', emailError);
+      }
+    }
+
+    res.json({ success: true, user: authData.user });
+  } catch (error) {
+    console.error('Error inviting user:', error);
+    res.status(500).json({ error: 'Failed to invite user' });
+  }
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📍 API available at http://localhost:${PORT}/api`);
+});
+
+export default app;

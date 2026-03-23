@@ -1,0 +1,25 @@
+FROM node:20
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+# Build args for Vite (frontend build-time vars)
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+ARG VITE_STRIPE_PUBLISHABLE_KEY
+
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+ENV VITE_STRIPE_PUBLISHABLE_KEY=$VITE_STRIPE_PUBLISHABLE_KEY
+
+# Build frontend
+RUN npm run build
+
+# Expose port (Cloud Run uses 8080 by default)
+ENV PORT=8080
+EXPOSE 8080
+
+CMD ["node", "server.js"]

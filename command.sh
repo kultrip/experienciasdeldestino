@@ -1,0 +1,8 @@
+cd /Users/charles.santana/Kultrip/gemini-dev/emergent/experienciasdeldestino
+
+SUPABASE_URL='https://znyobiyzwkexzmjvixnu.supabase.co' \
+SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpueW9iaXl6d2tleHptanZpeG51Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTEzNzI5NywiZXhwIjoyMDc2NzEzMjk3fQ.IamUyqlhEyhQff3SbGJauLKL92HN_FLPeFehPkVbqVk" \
+GEMINI_API_KEY=AIzaSyBzOTA8SPI4gEbbSV8q1SwPCKCSnoiKTLg \
+EMBEDDING_MODEL='embedding-001' \
+node backend/scripts/backfillExperienceEmbeddings.mjs
+

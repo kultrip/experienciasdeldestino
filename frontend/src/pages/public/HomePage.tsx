@@ -42,7 +42,7 @@ const HomePage = () => {
       <div
         className="relative h-[600px] flex items-center justify-center"
         style={{
-          backgroundImage: 'url(https://images.unsplash.com/photo-1659003608484-dae8f0a45a14?w=1920)',
+          backgroundImage: 'url(https://images.unsplash.com/photo-1539037116277-4db20889f2d4?w=1920&q=80)',
           backgroundSize: 'cover',
           backgroundPosition: 'center'
         }}

@@ -12,7 +12,8 @@ import axios from 'axios';
 const DEFAULT_LOCAL_BACKEND = 'http://localhost:8001';
 const RAW_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
-const BACKEND_URL = RAW_BACKEND_URL || (isLocalhost ? DEFAULT_LOCAL_BACKEND : '');
+// In localhost, prefer local backend to avoid CORS issues
+const BACKEND_URL = isLocalhost ? DEFAULT_LOCAL_BACKEND : (RAW_BACKEND_URL || '');
 
 const provinces = [
   'A Coruña', 'Álava', 'Albacete', 'Alicante', 'Almería', 'Asturias',
